@@ -3,6 +3,12 @@ import numpy as np
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans, DBSCAN
+import time
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from sklearn.manifold import TSNE
+from sklearn.neighbors import NearestNeighbors
 
 
 def k_means(data, k, max_iterations=100, tolerance=1e-4):
@@ -20,6 +26,26 @@ def k_means(data, k, max_iterations=100, tolerance=1e-4):
         centroids = new_centroids
 
     return centroids, closest_centroids
+
+
+def optimal_kmeans_clusters(data, max_k=10):
+    wcss = []
+    for i in range(2, max_k + 1):
+        kmeans = KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=0)
+        kmeans.fit(data)
+        wcss.append(kmeans.inertia_)
+
+    k_derivatives = np.diff(wcss)
+    optimal_k = np.argmin(k_derivatives) + 2
+    return optimal_k if optimal_k > 1 else 2
+
+
+def optimize_dbscan_eps(data, k=5):
+    neighbors = NearestNeighbors(n_neighbors=k)
+    neighbors_fit = neighbors.fit(data)
+    distances, indices = neighbors_fit.kneighbors(data)
+    eps = np.mean(distances[:, k - 1])
+    return eps
 
 
 file_path = 'celltocellholdout.csv'
@@ -46,8 +72,6 @@ num_components_95 = pca_95.n_components_
 print("Data with 2 PCA components:\n", data_pca_2)
 print(f"95% variance is retained by {num_components_95} components.")
 
-import matplotlib.pyplot as plt
-
 # Visualization
 plt.figure(figsize=(8, 6))
 plt.scatter(data_pca_2[:, 0], data_pca_2[:, 1], alpha=0.5)
@@ -56,27 +80,28 @@ plt.xlabel('Principal Component 1')
 plt.ylabel('Principal Component 2')
 plt.show()
 
-from sklearn.cluster import KMeans, DBSCAN
-import time
+optimal_k = optimal_kmeans_clusters(data_pca_95)
+print("Optimal K for KMeans:", optimal_k)
 
 start_time = time.time()
-centroids, clusters_custom = k_means(data_pca_95, 5)
+centroids, clusters_custom = k_means(data_pca_95, optimal_k)
 custom_kmeans_time = time.time() - start_time
 print("Custom KMeans Time:", custom_kmeans_time, "seconds")
 
 start_time = time.time()
-kmeans = KMeans(n_clusters=5)
+kmeans = KMeans(n_clusters=optimal_k)
 clusters_kmeans = kmeans.fit_predict(data_pca_95)
 kmeans_time = time.time() - start_time
 print("KMeans Time:", kmeans_time, "seconds")
 
+eps_value = optimize_dbscan_eps(data_pca_95)
+print("Calculated EPS for DBSCAN:", eps_value)
+
 start_time = time.time()
-dbscan = DBSCAN(eps=0.5, min_samples=5)
+dbscan = DBSCAN(eps=eps_value, min_samples=5)
 clusters_dbscan = dbscan.fit_predict(data_pca_95)
 dbscan_time = time.time() - start_time
 print("DBSCAN Clustering Time:", dbscan_time, "seconds")
-
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 
 silhouette_kmeans = silhouette_score(data_pca_95, clusters_kmeans)
 davies_bouldin_kmeans = davies_bouldin_score(data_pca_95, clusters_kmeans)
@@ -104,8 +129,6 @@ print("DBSCAN Propagation Metrics:")
 print("Silhouette Score:", silhouette_dbscan)
 print("Davies-Bouldin Score:", davies_bouldin_dbscan)
 print("Calinski-Harabasz Index:", calinski_harabasz_dbscan)
-
-from sklearn.manifold import TSNE
 
 tsne = TSNE(n_components=2, perplexity=30, n_iter=250)
 data_tsne = tsne.fit_transform(data_pca_95)
