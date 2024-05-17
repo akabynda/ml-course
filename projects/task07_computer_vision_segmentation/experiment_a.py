@@ -1,21 +1,17 @@
 import os
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
-from torchvision import transforms
 from dataset import ImageMaskDataset
-from unet import UNet, dice_loss, train, evaluate
+from unet import UNet, dice_loss, evaluate, train
 import torch
 import torch.optim as optim
 
-# Directories
 image_dir = 'dataset/images'
 mask_dir = 'dataset/masks'
 
-# File retrieval
 image_files = [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith('.jpg')]
 mask_files = [os.path.join(mask_dir, f) for f in os.listdir(mask_dir) if f.endswith('.png')]
 
-# Splitting data
 indices = range(len(image_files))
 train_indices, test_indices = train_test_split(list(indices), test_size=0.2, random_state=42)
 
