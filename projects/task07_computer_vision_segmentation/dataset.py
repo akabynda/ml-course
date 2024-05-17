@@ -4,7 +4,7 @@ from torch import Tensor
 import cv2
 import numpy as np
 import torch
-from albumentations import Compose
+
 
 class ImageMaskDataset(Dataset):
     def __init__(self, image_files, mask_files):
@@ -25,6 +25,7 @@ class ImageMaskDataset(Dataset):
         mask = Tensor(mask.astype(int))[None, ...]
 
         return image, mask.float()
+
 
 class ImageMaskDatasetWithAugmentation(Dataset):
     def __init__(self, image_files, mask_files, transform=None, augmentation=None):
@@ -48,9 +49,8 @@ class ImageMaskDatasetWithAugmentation(Dataset):
             augmented = self.augmentation(image=image, mask=mask)
             image, mask = augmented['image'], augmented['mask']
 
-        image = torch.tensor(image).permute(2, 0, 1).float() / 255.0
-        mask = torch.tensor(mask).unsqueeze(0).float() / 255.0
-
+        image = torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
+        mask = torch.from_numpy(mask).unsqueeze(0).float() / 255.0
         mask = (mask > 0.5).float()
 
         return image, mask
